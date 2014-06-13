@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>M023040025 - Voronoi Diagram</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" href="css/style.css" type="text/css" media="all" />
+<link rel="stylesheet" href="css/jquery.jcarousel.css" type="text/css" media="all" />
+<!--[if IE 6]><link rel="stylesheet" href="css/ie6.css" type="text/css" media="all" /><![endif]-->
+<link rel="shortcut icon" href="css/images/favicon.ico" />
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="js/jquery.jcarousel.pack.js"></script>
+<script type="text/javascript" src="js/func.js"></script>
+</head>
+<body>
+<div class="shell">
+  <div class="border">
+    <div id="header">
+      <a href="index.html"><img src="img/logo.jpg" style="width:200px;height:109px"></a>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div id="navigation">
+      <ul>
+        <li><a href="index.html">軟體規格書</a></li>
+        <li><a href="manual.html">軟體說明</a></li>
+        <li><a href="programming.html" class="active">程式設計</a></li>
+        <li><a href="experiment.html">軟體測試與實驗結果</a></li>
+        <li><a href="conclusion.html">結論與心得</a></li>
+        <li><a href="appendix.html">附錄</a></li>
+      </ul>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div id="main">
+        <div class="highlight">
+            <div class="block">
+                <h2>實作流程</h2>
+                <p>
+                    <div style="padding-left:20px;">
+                        首先，必須要先實做出各個功能的界面。因為網頁已經定義好許多物件的標籤，而又可以立即顯示，所以我選擇使用網頁的方式來呈現。</br>
+                    </div>
+                    HTML5 提供了 Canvas 的標籤來在網頁上繪圖，但是原生的函式庫不好用。所以我選擇使用 <a href="http://kineticjs.com/">KineticJS</a> 來幫助我完成版面的規劃。把所有的物件都放到頁面上後，</br>
+                    可以再設定 CSS 來排版。如此就可以得到美美的 Layout 了。</br>
+                    <img src="img/layout.png" alt="" class="right" style="width:640px;height:480px;"/>
+                    <div style="padding-left:20px;">
+                        再來，為了完成 divide-and-conquer 版本的 Voronoi Diagram。必須先完成一些 Base Case。在此我以 2點 Voronoi 以及 3點 Voronoi 當作 Base Case。</br>
+                    </div>
+                    所謂的 Base Case，指的就是不擇手段也要將結果正確地執行出來。在這邊比較困難的地方在於如何消除不需要的線段，在此我參考 <a href="http://www.twce.org.tw/members/03725/notes/crossdot.htm" target="_blank">兩線段之交點</a> 來判斷線段之間的交點，</br>
+                    並考慮一些判斷來消線。在三個點的 Voronoi 中，我分為三種情況來考慮，分別是直角，銳角，以及鈍角三角形。三種 case 所要消除的線段皆不太一樣。必須謹慎考慮。</br>
+                    <div style="padding-left:20px;">
+                        完成了 Base Case 之後，接下來必須找尋 Convex Hull，來解決 Merge 的問題。 在這邊找 Convex Hull 的方式比較特別，我參考 Pamela Cutter 教授上課的 <a href="http://www.cs.kzoo.edu/cs215/lectures/m3-convex-hull.pdf" target="_blank">投影片</a>。</br>
+                    </div>
+                    利用外積的計算，來找出兩邊 Convex Hull 的上切點與下切點，然後再將彼此連起來，就可以 Merge Convex Hull 了。</br>
+                    <div style="padding-left:20px;">
+                        最後，找出 Hyper Plane 來合併 Voronoi Diagram。這樣就可以得到正確的執行結果了。找 HP 必須有上切點，下切點以及每一個點的"鄰居"。在此我記錄了每一個點的</br>
+                    </div>
+                    "順時針"以及"逆時針"的鄰居是哪些點，利用此資訊可以判斷被HP交到的下區塊是哪些頂點，然後就可以繼續往下尋找HP。
+                    <img src="img/example.png" alt="" class="right" style="width:640px;height:480px;"/>
+                </p>
+            </div>
+            <div class="block">
+                <h2>資料結構</h2>
+                <p>
+                    <div style="padding-left:20px;">
+                        Point:</br>
+                        <div style="padding-left:40px;">
+                            x: 坐標x</br>
+                            y: 坐標y</br>
+                            clockwise: 順時針的鄰居</br>
+                            counter_clockwise: 逆時針的鄰居</br>
+                        </div>
+                    </div>
+                    <div style="padding-left:20px;">
+                        Line:</br>
+                        <div style="padding-left:40px;">
+                            points[]: 線段所組成的點</br>
+                            made_by[]: 由哪些點組成</br>
+                        </div>
+                    </div>
+                    <div style="padding-left:20px;">
+                    </br>
+                        convexlayer:儲存每一個 Convex Hull(包含 merge 前)</br>
+                        vorlayer: 儲存每一個 Voronoi Diagram(包含 merge 前)</br>
+                        bisectorlayer: 儲存所有中垂線</br>
+                        steplayer: 儲存每一步驟所要畫的所有點跟線</br>
+                        HPlayer: 儲存所有 Hyper Plane 的線段</br>
+                        L_up: 左 Voronoi 的上切點</br>
+                        L_down: 左 Voronoi 的下切點</br>
+                        R_up: 右 Voronoi 的上切點</br>
+                        R_down: 右 Voronoi 的下切點</br>
+                    </div>
+                </p>
+            </div>
+        </div>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div class="shadow-l"></div>
+    <div class="shadow-r"></div>
+    <div class="shadow-b"></div>
+  </div>
+  <div id="footer">
+    <p class="left">Copyright &copy; 2013, NSYSU M023040025 Kai-Ning Yang, All Rights Reserved</p>
+    <div class="cl"></div>
+  </div>
+</div>
+</body>
+</html>

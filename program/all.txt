@@ -1,0 +1,1711 @@
+//style.css
+.menu {
+    padding-top: 20px;
+    padding-bottom: 20px;
+    height: 20px;
+    width: 700px;
+    background-color: gray;
+    display: inline-block;
+}
+.label_y {
+    padding-left: 40px;
+}
+.show_point_indices {
+    padding-left: 40px;
+}
+.number_of_sites {
+    padding-left: 40px;
+}
+.foot {
+    padding-top: 20px;
+    padding-bottom: 20px;
+    height: 30px;
+    width: 700px;
+    background-color: gray;
+    display: inline-block;
+}
+.button_start {
+    padding-left: 40px;
+}
+.delaunay {
+    padding-left: 40px;
+}
+
+//index.html
+<!--$LAN=javascript$
+Voronoi Diagram
+版權宣告
+中山大學資訊工程所資料庫系統實驗室F5023
+email:yangkn@db.cse.nsysu.edu.tw
+Designer:
+學號: M023040025
+姓名: 楊凱甯
+Name: Kai-Ning Yang
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="style.css">
+<script src="jquery-1.10.2.min.js"></script>
+<script src="kinetic-v4.6.0.min.js"></script>
+<script>
+//變數宣告區
+var stage;
+var layer;
+var textlayer;
+var linelayer;
+var convex_draw_layer;
+var HP_draw_layer;
+var step_draw_layer;
+var HPlayer = Array();
+var vorlayer = Array();
+var convexlayer = Array();
+var bisectorlayer = Array();
+var bisector_checked = Array();
+var steplayer = Array();
+var count = 0;
+var mouse_position;
+var circle;
+var circle_text;
+var text_visible = false;
+var Input_text;
+var Output_text;
+var res;
+var res_index;
+var L_up;
+var L_down;
+var R_up;
+var R_down;
+var HP_highest_point;
+var HP_highest_isset = false;
+var last_index0;
+var last_index1;
+var last_index_isset = false;
+var step_index = 0;
+var current_step_index = 0;
+var Step_isset = false;
+//var res_point;
+//var Input_file = false;
+
+$(document).ready(function() {
+    //設定畫布
+    stage = new Kinetic.Stage({
+        container: 'container',
+        width: 700,
+        height: 600
+    });
+    //圖層 - 頂點
+    layer = new Kinetic.Layer();
+    //圖層 - 文字
+    textlayer = new Kinetic.Layer();
+    //圖層 - 線段
+    linelayer = new Kinetic.Layer();
+    //圖層 - convex_hull
+    convex_draw_layer = new Kinetic.Layer();
+    //圖層 - HP
+    HP_draw_layer = new Kinetic.Layer();
+    //圖層 - step
+    step_draw_layer = new Kinetic.Layer();
+    stage.add(layer);
+    stage.add(textlayer);
+    stage.add(linelayer);
+    stage.add(convex_draw_layer);
+    stage.add(HP_draw_layer);
+    stage.add(step_draw_layer);
+
+    //顯示滑鼠的位置
+    stage.on('mousemove', function(event) {
+        //抓取stage的位置
+        var pos = stage.getMousePosition();
+        $(".label_x").html("X: " + pos.x);
+        $(".label_y").html("Y: " + pos.y);
+    });
+
+    //新增頂點
+    stage.on('click', function(event) {
+        mouse_position = stage.getMousePosition();
+
+        circle = new Kinetic.Circle({
+            x: mouse_position.x,
+            y: mouse_position.y,
+            radius: 2,
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 4,
+        });
+
+
+        circle_text = new Kinetic.Text({
+            x: mouse_position.x + 5,
+            y: mouse_position.y,
+            text: count,
+            fontSize: 4,
+            fontFamily: 'Calibri',
+            fill: 'black',
+            visible: text_visible
+        });
+
+        layer.add(circle);
+        textlayer.add(circle_text);
+
+        stage.draw();
+        count++;
+        $(".number_of_sites").html(count + " of 10000 points are set.");
+    });
+
+    //顯示頂點的編號
+    $(".show_point_indices input").on('change', function(event) {
+        var text = textlayer.getChildren();
+        if (this.checked) {
+            text_visible = true;
+            for (var key in text) {
+                text.show();
+            }
+        } else {
+            text_visible = false;
+            for (var key in text) {
+                text.hide();
+            }
+        }
+        stage.draw();
+    });
+
+
+    //讀入檔案
+    $("input[type='file']").change(function() {
+        Clear();
+        Input();
+    });
+    $(".show_point_indices input").prop("checked",true);
+    text_visible = true;
+
+});
+
+
+//兩點Voronoi
+function two(node0,node1,first) {
+    var P0 = node0.getPosition();
+    var P1 = node1.getPosition();
+    //console.log(node0);
+    //console.log(node1);
+    //共點
+    if (P0.x == P1.x && P0.y == P1.y) {
+        console.log("Duplicate");
+        return;
+    }
+    var P_center;
+    var N_vector;
+    var bisector_p0;
+    var bisector_p1;
+    var bisector = Array();
+    //中點位置 - 整數
+    P_center = {
+        'x' : (P0.x + P1.x) / 2,
+        'y' : (P0.y + P1.y) / 2,
+
+    };
+    N_vector = {
+        'x' : (P1.y - P0.y),
+        'y' : (P0.x - P1.x),
+    }
+    //法向量的端點 - 10000倍
+    bisector_p0 = new Kinetic.Circle({
+        x: P_center.x + (N_vector.x * 10000),
+        y: P_center.y + (N_vector.y * 10000),
+        radius: 2,
+        fill: 'green',
+        stroke: 'black',
+        strokeWidth: 4,
+    });
+    bisector_p1 = new Kinetic.Circle({
+        x: P_center.x - (N_vector.x * 10000),
+        y: P_center.y - (N_vector.y * 10000),
+        radius: 2,
+        fill: 'green',
+        stroke: 'black',
+        strokeWidth: 4,
+    });
+    draw_line(bisector_p0,bisector_p1,node0.index,node1.index,first);
+}
+
+//三點Voronoi
+function three(node0,node1,node2,first) {
+    var P0 = node0.getPosition();
+    var P1 = node1.getPosition();
+    var P2 = node2.getPosition();
+    var circumcenter;
+    var bisector_01;
+    var bisector_02;
+    var bisector_12;
+    var temp_bisector_1;
+    var temp_bisector_2;
+    var temp_b_P0;
+    var temp_b_P1;
+    var new_bisector_01;
+    var new_bisector_02;
+    var new_bisector_12;
+    var longest_edge;
+    var choose_b1;
+    var choose_b2;
+    var E01;
+    var E02;
+    var E12;
+    var angle;
+    var is_longest;
+    var one_line;
+
+    //判斷有無三點共線
+    one_line = false;
+    one_line = check_one_line(P0,P1,P2);
+    //取得三條中垂線
+    bisector_01 = create_bisector(P0,P1);
+    bisector_02 = create_bisector(P0,P2);
+    bisector_12 = create_bisector(P1,P2);
+    //取得最長邊
+    longest_edge = find_longest_edge(P0,P1,P2);
+    //取得邊的端點
+    E01 = get_edge(P0,P1);
+    E02 = get_edge(P0,P2);
+    E12 = get_edge(P1,P2);
+    //取得角度
+    angle = get_angle(E01,E02,E12,longest_edge);
+    circumcenter = get_circumcenter(bisector_01,bisector_02);
+    temp_bisector_1 = Array();
+    temp_bisector_2 = Array();
+    is_longest = false;
+    if ("01" == longest_edge) {
+        //處理b02
+        bisector_02 = select_bisector(bisector_02,circumcenter,E02,is_longest,angle,E01,E12,one_line,node0.index,node2.index,first);
+        //處理b12
+        bisector_12 = select_bisector(bisector_12,circumcenter,E12,is_longest,angle,E01,E02,one_line,node1.index,node2.index,first);
+        //處理b01 - 長邊
+        is_longest = true;
+        bisector_01 = select_bisector(bisector_01,circumcenter,E01,is_longest,angle,E02,E12,one_line,node0.index,node1.index,first);
+    } else if ("02" == longest_edge) {
+        //處理b01
+        bisector_01 = select_bisector(bisector_01,circumcenter,E01,is_longest,angle,E02,E12,one_line,node0.index,node1.index,first);
+        //處理b12
+        bisector_12 = select_bisector(bisector_12,circumcenter,E12,is_longest,angle,E01,E02,one_line,node1.index,node2.index,first);
+        //處理b02 - 長邊
+        is_longest = true;
+        bisector_02 = select_bisector(bisector_02,circumcenter,E02,is_longest,angle,E01,E12,one_line,node0.index,node2.index,first);
+    } else if ("12" == longest_edge) {
+        //處理b01
+        bisector_01 = select_bisector(bisector_01,circumcenter,E01,is_longest,angle,E02,E12,one_line,node0.index,node1.index,first);
+        //處理b02
+        bisector_02 = select_bisector(bisector_02,circumcenter,E02,is_longest,angle,E01,E12,one_line,node0.index,node2.index,first);
+        //處理b12 - 長邊
+        is_longest = true;
+        bisector_12 = select_bisector(bisector_12,circumcenter,E12,is_longest,angle,E01,E02,one_line,node1.index,node2.index,first);
+    } else {
+        alert("Error: In function three");
+        return;
+    }
+}
+
+//執行 Voronoi
+function Start() {
+    $(".button_output button").attr("disabled", false);
+    Reset();
+    Sort();
+    var node_array = layer.getChildren();
+
+    if (0 == node_array.length) {
+        return;
+    } else if (1 == node_array.length) {
+        return;
+    } else {
+        Voronoi(0,node_array.length - 1);
+    }
+    console.log(node_array.length);
+    if (node_array.length > 3) {
+        step_draw_layer.removeChildren();
+        for (var i in steplayer[2]) {
+            step_draw_layer.add(steplayer[2][i]);
+        }
+        stage.draw();
+    }
+    console.log(steplayer[2]);
+}
+
+function Step() {
+    if (!Step_isset) {
+        $(".button_output button").attr("disabled", false);
+        Reset();
+        Sort();
+        var node_array = layer.getChildren();
+
+        if (0 == node_array.length) {
+            return;
+        } else if (1 == node_array.length) {
+            return;
+        } else {
+            Voronoi(0,node_array.length - 1);
+        }
+        if (node_array.length > 3) {
+            step_draw_layer.removeChildren();
+            for (var i in steplayer[current_step_index]) {
+                step_draw_layer.add(steplayer[current_step_index][i]);
+            }
+            current_step_index++;
+            stage.draw();
+        }
+        Step_isset = true;
+    } else {
+        var node_array = layer.getChildren();
+        if (current_step_index > step_index || node_array.length <= 3) {
+            Clear();
+            return;
+        } else {
+            if (node_array.length > 3) {
+                step_draw_layer.removeChildren();
+                for (var i in steplayer[current_step_index]) {
+                    step_draw_layer.add(steplayer[current_step_index][i]);
+                }
+                current_step_index++;
+                stage.draw();
+            }
+        }
+    }
+}
+//Voronoi
+function Voronoi(first,last) {
+    var mid = 0;
+    var push_layer = false;
+    if (first < last) {
+        var node_array = layer.getChildren();
+        var num_point = last - first + 1;
+        if (2 == num_point || 3 == num_point) {
+            vorlayer[first] = Array();
+            convexlayer[first] = Array();
+            HPlayer[first] = Array();
+            vorlayer[first]['bisector'] = Array();
+            for (var i = first; i <= last; i++) {
+                bisectorlayer[i] = Array();
+                bisector_checked[i] = Array();
+            }
+        }
+        if (2 == num_point) {
+            var P0;
+            var P1;
+            P0 = node_array[first];
+            P1 = node_array[first + 1];
+            two(P0,P1,first);
+            push_layer = true;
+        } else if (3 == num_point) {
+            var P0;
+            var P1;
+            var P2;
+            P0 = node_array[first];
+            P1 = node_array[first + 1];
+            P2 = node_array[first + 2];
+            three(P0,P1,P2,first);
+            push_layer = true;
+        } else {
+            mid = Math.floor((first + last) / 2);
+            var L_first = Voronoi(first,mid);
+            var R_first = Voronoi(mid+1,last);
+            draw_convex(convexlayer[L_first]);
+            for (var i in vorlayer[L_first]['bisector']) {
+                vorlayer[L_first]['bisector'][i].setAttr('stroke','blue');
+                steplayer[step_index].push(vorlayer[L_first]['bisector'][i]);
+            }
+            step_index++;
+            draw_convex(convexlayer[R_first]);
+            for (var i in vorlayer[R_first]['bisector']) {
+                vorlayer[R_first]['bisector'][i].setAttr('stroke','red');
+                steplayer[step_index].push(vorlayer[R_first]['bisector'][i]);
+            }
+            step_index++;
+            var temp_convex = merge_convex(L_first,R_first,mid,last);
+            find_HP(temp_convex,L_first,R_first);
+            vorlayer[L_first]['bisector'] = [];
+            vorlayer[R_first]['bisector'] = [];
+            linelayer.removeChildren();
+            for (var i = first; i <= last; i++) {
+                for (var j in bisectorlayer[i]) {
+                    if (!bisector_checked[i][j]) {
+                        if (false == bisectorlayer[i][j].getAttr('cut')) {
+                            //continue;
+                        }
+                        vorlayer[L_first]['bisector'].push(bisectorlayer[i][j]);
+                        linelayer.add(bisectorlayer[i][j]);
+                        bisector_checked[i][j] = true;
+                        bisector_checked[j][i] = true;
+                    }
+                }
+            }
+            for (var i in vorlayer[L_first]['bisector']) {
+                vorlayer[L_first]['bisector'][i].setAttr('stroke','gray');
+                steplayer[step_index].push(vorlayer[L_first]['bisector'][i]);
+            }
+            for (var k in vorlayer[R_first]['point']) {
+                vorlayer[L_first]['point'].push(vorlayer[R_first]['point'][k]);
+            }
+            for (var i = first; i <= last; i++) {
+                for (var j in bisectorlayer[i]) {
+                    bisector_checked[i][j] = false;
+                    bisectorlayer[i][j].setAttr('cut',false);
+                }
+            }
+            delete vorlayer[R_first];
+            stage.add(linelayer);
+            stage.draw();
+            convexlayer[L_first] = temp_convex;
+            delete convexlayer[R_first];
+            delete HPlayer[R_first];
+            select_i = -1;
+            select_first = -1;
+            HP_highest_isset = false;
+            last_index_isset = false;
+            //console.log(convexlayer);
+            //console.log(vorlayer);
+            //console.log(HPlayer);
+    linelayer.removeChildren();
+    convex_draw_layer.removeChildren();
+    HP_draw_layer.removeChildren();
+    step_draw_layer.removeChildren();
+    stage.draw();
+            console.log(vorlayer);
+            console.log(convexlayer);
+            console.log(steplayer);
+            return first;
+        }
+        if (push_layer) {
+            vorlayer[first]['point'] = Array();
+            for (var i = first; i <= last; i++) {
+                vorlayer[first]['point'].push(node_array[i]);
+            }
+            find_convex_hull(first);
+            if (2 == node_array.length || 3 == node_array.length) {
+                draw_convex(convexlayer[first]);
+            }
+            //console.log(convexlayer);
+            return first;
+        }
+    }
+}
+//確定三點共線
+function check_one_line(P0,P1,P2) {
+    var M1 = (P0.y - P1.y) / (P0.x - P1.x);
+    var M2 = (P0.y - P2.y) / (P0.x - P2.x);
+    if (P0.x == P1.x && P0.x == P2.x) {//三點垂直共線
+        return true;
+    } else if (P0.y == P1.y && P0.y == P2.y) {//三點水平共線
+        return true;
+    } else if (M1 == M2) {
+        return true;
+    } else {//三點不共線
+        return false;
+    }
+}
+
+//畫線
+function draw_line(bisector_p0,bisector_p1,index_p0,index_p1,first) {
+    var P0 = bisector_p0.getPosition();
+    var P1 = bisector_p1.getPosition();
+    if (!isFinite(P0.x) || !isFinite(P0.y) || !isFinite(P1.x) || !isFinite(P1.y)) {
+        console.log("function draw_line error");
+        return;
+    }
+    var line = new Kinetic.Line({
+        points: [P0.x, P0.y, P1.x, P1.y],
+        stroke: 'gray',
+        strokeWidth: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+        made_by: [index_p0,index_p1],
+        cut: false
+    });
+    bisectorlayer[index_p0][index_p1] = line;
+    bisectorlayer[index_p1][index_p0] = line;
+    bisector_checked[index_p0][index_p1] = false;
+    bisector_checked[index_p1][index_p0] = false;
+    vorlayer[first]['bisector'].push(line);
+
+    linelayer.add(line);
+    stage.add(linelayer);
+    stage.draw();
+}
+
+//畫線
+function draw_output_line(bisector_p0,bisector_p1,index_p0,index_p1) {
+    var P0 = bisector_p0.getPosition();
+    var P1 = bisector_p1.getPosition();
+    if (!isFinite(P0.x) || !isFinite(P0.y) || !isFinite(P1.x) || !isFinite(P1.y)) {
+        console.log("function draw_line error");
+        return;
+    }
+    var line = new Kinetic.Line({
+        points: [P0.x, P0.y, P1.x, P1.y],
+        stroke: 'gray',
+        strokeWidth: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+        made_by: [index_p0,index_p1],
+        cut: false
+    });
+
+    linelayer.add(line);
+    stage.add(linelayer);
+    stage.draw();
+}
+//畫切過的線
+function draw_cut_line(bisector_p0,bisector_p1,index_p0,index_p1) {
+    var P0 = bisector_p0.getPosition();
+    var P1 = bisector_p1.getPosition();
+    if (!isFinite(P0.x) || !isFinite(P0.y) || !isFinite(P1.x) || !isFinite(P1.y)) {
+        console.log("function draw_cut_line error");
+        return;
+    }
+    var line = new Kinetic.Line({
+        points: [P0.x, P0.y, P1.x, P1.y],
+        stroke: 'gray',
+        strokeWidth: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+        made_by: [index_p0,index_p1],
+        cut: true
+    });
+    bisectorlayer[index_p0][index_p1] = line;
+    bisectorlayer[index_p1][index_p0] = line;
+
+    linelayer.add(line);
+    stage.add(linelayer);
+    stage.draw();
+}
+
+//畫convex hull
+function draw_convex(convex_array) {
+    var P0;
+    var P1;
+    for (var i = 0; i < convex_array.length; i++) {
+        P0 = convex_array[i].getPosition();
+        if (i == convex_array.length - 1) {
+            P1 = convex_array[0].getPosition();
+        } else {
+            P1 = convex_array[i+1].getPosition();
+        }
+        if (!isFinite(P0.x) || !isFinite(P0.y) || !isFinite(P1.x) || !isFinite(P1.y)) {
+            continue;
+        }
+        var line = new Kinetic.Line({
+            points: [P0.x, P0.y, P1.x, P1.y],
+            stroke: 'gray',
+            strokeWidth: 1,
+            lineCap: 'round',
+            lineJoin: 'round',
+        });
+        convex_draw_layer.add(line);
+        steplayer[step_index].push(line);
+    }
+    stage.add(convex_draw_layer);
+    stage.draw();
+}
+
+//畫HP
+function draw_HP(HP_p0,HP_p1) {
+    var P0 = HP_p0.getPosition();
+    var P1 = HP_p1.getPosition();
+    if (!isFinite(P0.x) || !isFinite(P0.y) || !isFinite(P1.x) || !isFinite(P1.y)) {
+        return;
+    }
+    var line = new Kinetic.Line({
+        points: [P0.x, P0.y, P1.x, P1.y],
+        stroke: 'purple',
+        strokeWidth: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+    });
+    steplayer[step_index].push(line);
+    HP_draw_layer.add(line);
+    stage.add(HP_draw_layer);
+    stage.draw();
+}
+
+//回傳中垂線的兩端點
+function create_bisector(P0,P1) {
+    var P_center;
+    var N_vector;
+    var bisector_p1;
+    var bisector_p2;
+    var bisector_point = Array();
+    //中點位置 - 整數
+    P_center = {
+        'x' : (P0.x + P1.x) / 2,
+        'y' : (P0.y + P1.y) / 2,
+
+    };
+    N_vector = {
+        'x' : (P1.y - P0.y),
+        'y' : (P0.x - P1.x),
+    }
+    //法向量的端點 - 10000倍
+    bisector_p1 = new Kinetic.Circle({
+        x: P_center.x + (N_vector.x * 10000),
+        y: P_center.y + (N_vector.y * 10000),
+        radius: 2,
+        fill: 'green',
+        stroke: 'black',
+        strokeWidth: 4
+    });
+    bisector_p2 = new Kinetic.Circle({
+        x: P_center.x - (N_vector.x * 10000),
+        y: P_center.y - (N_vector.y * 10000),
+        radius: 2,
+        fill: 'green',
+        stroke: 'black',
+        strokeWidth: 4
+    });
+    bisector_point[0] = bisector_p1;
+    bisector_point[1] = bisector_p2;
+    return bisector_point;
+}
+
+//找最長邊
+function find_longest_edge(P0,P1,P2) {
+    var E01 = Array();
+    var E02 = Array();
+    var E12 = Array();
+    var longest_edge;
+    E01.id = "01";
+    E02.id = "02";
+    E12.id = "12";
+    E01.edge = edge_length(P0,P1);
+    E02.edge = edge_length(P0,P2);
+    E12.edge = edge_length(P1,P2);
+    longest_edge = Math.max(E01.edge,E02.edge,E12.edge);
+    if (longest_edge == E01.edge) {
+        return E01.id;
+    } else if (longest_edge == E02.edge) {
+        return E02.id;
+    } else if (longest_edge == E12.edge) {
+        return E12.id;
+    } else {
+        alert("Error: In function find_longest_edge");
+    }
+}
+
+//回傳線段長
+function edge_length(P0,P1) {
+    return Math.pow(Math.pow(P0.x - P1.x,2) + Math.pow(P0.y - P1.y,2), 0.5);
+}
+//回傳線段長平方
+function edge_length_without_root(P0,P1) {
+    return Math.pow(P0.x - P1.x,2) + Math.pow(P0.y - P1.y,2);
+}
+
+//回傳邊的兩端點
+function get_edge(P0,P1) {
+    var edge_point = Array();
+    edge_point.P0 = P0;
+    edge_point.P1 = P1;
+    return edge_point;
+}
+
+//回傳三角形的角度
+/*
+銳角:1
+直角:2
+鈍角:3
+*/
+function get_angle(E01,E02,E12,longest_edge) {
+    E01.edge = edge_length_without_root(E01.P0,E01.P1);
+    E02.edge = edge_length_without_root(E02.P0,E02.P1);
+    E12.edge = edge_length_without_root(E12.P0,E12.P1);
+    if ("01" == longest_edge) {
+        return check_angle_without_power(E02.edge,E12.edge,E01.edge);
+    } else if ("02" == longest_edge) {
+        return check_angle_without_power(E01.edge,E12.edge,E02.edge);
+    } else if ("12" == longest_edge) {
+        return check_angle_without_power(E01.edge,E02.edge,E12.edge);
+    } else {
+        alert("Error: In function three");
+    }
+}
+
+//確認平方和
+function check_angle(Ea,Eb,Ec) {
+    if (Math.pow(Ea,2) + Math.pow(Eb,2) > Math.pow(Ec,2)) {
+        return 1;
+    } else if (Math.pow(Ea,2) + Math.pow(Eb,2) == Math.pow(Ec,2)) {
+        return 2;
+    } else if (Math.pow(Ea,2) + Math.pow(Eb,2) < Math.pow(Ec,2)) {
+        return 3;
+    } else {
+        alert("Error: In function check_angle");
+    }
+}
+//確認平方和
+function check_angle_without_power(Ea,Eb,Ec) {
+    if (Ea + Eb > Ec) {
+        return 1;
+    } else if (Ea + Eb == Ec) {
+        return 2;
+    } else if (Ea + Eb < Ec) {
+        return 3;
+    } else {
+        alert("Error: In function check_angle");
+    }
+}
+
+//回傳外心
+function get_circumcenter(bisector_01,bisector_02) {
+    var L1_P0;
+    var L1_P1;
+    var L2_P0;
+    var L2_P1;
+    var a;
+    var b;
+    var c;
+    var d;
+    var e;
+    var f;
+    var circumcenter_x;
+    var circumcenter_y;
+    var circumcenter;
+    L1_P0 = bisector_01[0].getPosition();
+    L1_P1 = bisector_01[1].getPosition();
+    L2_P0 = bisector_02[0].getPosition();
+    L2_P1 = bisector_02[1].getPosition();
+    a = L1_P1.y - L1_P0.y;
+    b = L1_P0.x - L1_P1.x;
+    c = (L1_P0.x * L1_P1.y) - (L1_P1.x * L1_P0.y);
+    d = L2_P1.y - L2_P0.y;
+    e = L2_P0.x - L2_P1.x;
+    f = (L2_P0.x * L2_P1.y) - (L2_P1.x * L2_P0.y);
+    circumcenter_x = ((c * e) - (b * f)) / ((a * e) - (b * d));
+    circumcenter_y = ((a * f) - (c * d)) / ((a * e) - (b * d));
+    circumcenter = new Kinetic.Circle({
+        x: circumcenter_x,
+        y: circumcenter_y,
+        radius: 2,
+        fill: 'green',
+        stroke: 'black',
+        strokeWidth: 4
+    });
+    return circumcenter;
+}
+
+//選擇中垂線
+function choose_bisector(temp_bisector,E) {
+    var meet_point_s;
+    var meet_point_t;
+    var choose;
+    var P1;
+    var P2;
+    var P3;
+    var P4;
+    P1 = E.P0;
+    P2 = E.P1;
+    P3 = temp_bisector[0].getPosition();
+    P4 = temp_bisector[1].getPosition();
+    meet_point_s = (((P2.y - P1.y) * (P3.x - P1.x)) + ((P2.x - P1.x) * (P1.y - P3.y))) / (((P2.x - P1.x) * (P4.y - P3.y)) - ((P2.y - P1.y) * (P4.x - P3.x)));
+    meet_point_t = (((P4.y - P3.y) * (P3.x - P1.x)) + ((P4.x - P3.x) * (P1.y - P3.y))) / (((P2.x - P1.x) * (P4.y - P3.y)) - ((P2.y - P1.y) * (P4.x - P3.x)));
+    if (meet_point_t >= 0 && meet_point_t <= 1 && meet_point_s >= 0 && meet_point_s <= 1) {
+        choose = 1;
+    } else {
+        choose = 0;
+    }
+    return choose;
+}
+
+//新中垂線
+function select_bisector(bisector,circumcenter,E,is_longest,angle,E2,E3,one_line,index_p0,index_p1,first) {
+    var choose_b1;
+    var choose_b2;
+    var temp_bP0;
+    var temp_bP1;
+    var temp_bisector_1;
+    var temp_bisector_2;
+    temp_bisector_1 = Array();
+    temp_bisector_2 = Array();
+    choose_b1 = 0;
+    choose_b2 = 0;
+    temp_bP0 = bisector[0].getPosition();
+    temp_bP1 = bisector[1].getPosition();
+
+    temp_bisector_1[0] = bisector[0];
+    temp_bisector_1[1] = circumcenter;
+    temp_bisector_2[0] = circumcenter;
+    temp_bisector_2[1] = bisector[1];
+
+    choose_b1 = choose_bisector(temp_bisector_1,E);
+    choose_b2 = choose_bisector(temp_bisector_2,E);
+    if (false == is_longest) {
+        if (1 == choose_b1 && 1 == choose_b2) {
+            alert("Error: In function select_bisector1");
+        } else if (1 == choose_b1) {
+            bisector = temp_bisector_1;
+        } else if (1 == choose_b2) {
+            bisector = temp_bisector_2;
+        } else {
+            //判斷三點共線
+            if (!one_line) {
+                alert("Error: In function select_bisector2");
+            }
+        }
+    } else if (true == is_longest){
+        if (1 == angle) {//銳角
+            if (1 == choose_b1 && 1 == choose_b2) {
+                console.log()
+                console.log(layer);
+                alert("Error: In function select_bisector3");
+            } else if (1 == choose_b1) {
+                bisector = temp_bisector_1;
+            } else if (1 == choose_b2) {
+                bisector = temp_bisector_2;
+            } else {
+                alert("Error: In function select_bisector4");
+            }
+        } else if (2 == angle) {//直角
+            //不管哪個中垂線都會與E有相交, 因此需要測試E2與E3
+            //測試E2
+            choose_b1 = choose_bisector(temp_bisector_1,E2);
+            choose_b2 = choose_bisector(temp_bisector_2,E2);
+            if (1 == choose_b1 && 1 == choose_b2) {
+                alert("Error: In function select_bisector");
+            } else if (1 == choose_b1) {
+                bisector = temp_bisector_2;
+                draw_line(bisector[0],bisector[1],index_p0,index_p1,first);
+                return bisector;
+            } else if (1 == choose_b2) {
+                bisector = temp_bisector_1;
+                draw_line(bisector[0],bisector[1],index_p0,index_p1,first);
+                return bisector;
+            }
+            //測試E3
+            choose_b1 = choose_bisector(temp_bisector_1,E3);
+            choose_b2 = choose_bisector(temp_bisector_2,E3);
+            if (1 == choose_b1 && 1 == choose_b2) {
+                alert("Error: In function select_bisector");
+            } else if (1 == choose_b1) {
+                bisector = temp_bisector_2;
+                draw_line(bisector[0],bisector[1],index_p0,index_p1,first);
+                return bisector;
+            } else if (1 == choose_b2) {
+                bisector = temp_bisector_1;
+                draw_line(bisector[0],bisector[1],index_p0,index_p1,first);
+                return bisector;
+            }
+        } else if (3 == angle) {//鈍角
+            if (1 == choose_b1 && 1 == choose_b2) {
+                alert("Error: In function select_bisector");
+            } else if (0 == choose_b1) {
+                bisector = temp_bisector_1;
+            } else if (0 == choose_b2) {
+                bisector = temp_bisector_2;
+            } else {
+                alert("Error: In function select_bisector");
+            }
+        } else {
+            alert("Error: In function select_bisector");
+        }
+    } else {
+        alert("Error: In function select_bisector");
+    }
+    draw_line(bisector[0],bisector[1],index_p0,index_p1,first);
+    return bisector;
+}
+
+//頂點排序
+function Sort() {
+    var node_array = layer.getChildren();
+    var sort_array = Array();
+    //取得每一個頂點的坐標
+    for (var i = 0; i < node_array.length; i++) {
+        var position = node_array[i].getPosition();
+        sort_array[i] = Array();
+        sort_array[i].id = i;
+        sort_array[i].x = position.x;
+        sort_array[i].y = position.y;
+    }
+    sort_array.sort(function(a,b) {
+        return a.x - b.x || a.y - b.y;
+    });
+    //重新加入頂點與編號
+    layer.removeChildren();
+    textlayer.removeChildren();
+    var last_x = sort_array[0].x;
+    var last_y = sort_array[0].y;
+    for (var i = 0; i < sort_array.length; i++) {
+        if (sort_array[i].x == last_x && sort_array[i].y == last_y && i >= 1) {
+            continue;
+        } else {
+            last_x = sort_array[i].x;
+            last_y = sort_array[i].y;
+        }
+        circle = new Kinetic.Circle({
+            x: sort_array[i].x,
+            y: sort_array[i].y,
+            radius: 2,
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 4,
+            circle_id: i
+        });
+
+
+        circle_text = new Kinetic.Text({
+            x: sort_array[i].x + 5,
+            y: sort_array[i].y,
+            text: i,
+            fontSize: 4,
+            fontFamily: 'Calibri',
+            fill: 'black',
+            visible: text_visible,
+        });
+
+        layer.add(circle);
+        textlayer.add(circle_text);
+    }
+    stage.draw();
+}
+
+
+//讀檔
+function Input() {
+    var fileToLoad = $("input[type='file']")[0].files[0];
+
+    var fileReader = new FileReader();
+    fileReader.onload = function(fileLoadedEvent) {
+        var textFromFileLoaded = fileLoadedEvent.target.result;
+        Input_text = textFromFileLoaded;
+        res = textFromFileLoaded.split("\n");
+        for (var i = 0; i < res.length; i++) {
+            if ('#' == res[i][0] || '' == res[i] || 13 == res[i].charCodeAt(0)) {
+                res.splice(i,1);
+                i--;
+            }
+        }
+    };
+    fileReader.readAsText(fileToLoad, "big5");
+    res_index = 0;
+    $(".button_input_draw button").attr("disabled", false);
+}
+
+//畫Input的點
+function Input_draw() {
+    Clear();
+    //新增頂點
+    if (0 == res[res_index]) {
+        $(".button_input_draw button").attr("disabled", true);
+        $(".button_output button").attr("disabled", true);
+    }
+
+    for (var i = 1; i <= res[res_index]; i++) {
+        var res_point = res[res_index+i].split(" ");
+        circle = new Kinetic.Circle({
+            x: parseInt(res_point[0]),
+            y: parseInt(res_point[1]),
+            radius: 2,
+            fill: 'red',
+            stroke: 'black',
+            strokeWidth: 4
+        });
+
+        circle_text = new Kinetic.Text({
+            x: parseInt(res_point[0]) + 5,
+            y: parseInt(res_point[1]),
+            text: count,
+            fontSize: 4,
+            fontFamily: 'Calibri',
+            fill: 'black',
+            visible: text_visible
+        });
+
+
+        layer.add(circle);
+        textlayer.add(circle_text);
+
+        stage.draw();
+        count++;
+        $(".number_of_sites").html(count + " of 10000 points are set.");
+    }
+
+    res_index = res_index + parseInt(res[res_index]) + 1;
+}
+
+//輸出檔案
+function Output() {
+    console.log(layer);
+    Output_text = "";
+    var node_array = layer.getChildren();
+    //取得每一個頂點的坐標
+    for (var i = 0; i < node_array.length; i++) {
+        var position = node_array[i].getPosition();
+        Output_text = Output_text + "P " + position.x + " " + position.y + "\n";
+    }
+    if (node_array.length > 3) {
+        node_array = steplayer[2];
+    } else {
+        node_array = linelayer.getChildren();
+    }
+    //取得每一條線的坐標
+    for (var i = 0; i < node_array.length; i++) {
+        var line_point_array = node_array[i].getPoints();
+        line_point_array.sort(function(a,b) {
+            return a.x - b.x || a.y - b.y;
+        });
+        Output_text = Output_text + "E ";
+        for (var j = 0; j < line_point_array.length; j++) {
+            Output_text = Output_text + line_point_array[j].x + " " + line_point_array[j].y + " ";
+        }
+        Output_text = Output_text + "\n";
+    }
+    console.log(Output_text);
+    var textToWrite = Output_text;
+    var textFileAsBlob = new Blob([textToWrite], {type:'text/plain'});
+    var fileNameToSaveAs = "Output";
+
+    var downloadLink = document.createElement("a");
+    downloadLink.download = fileNameToSaveAs;
+    downloadLink.innerHTML = "Download File";
+    if (window.webkitURL != null) {
+        // Chrome allows the link to be clicked
+        // without actually adding it to the DOM.
+        downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+    }
+    else {
+        // Firefox requires the link to be added to the DOM
+        // before it can be clicked.
+        downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+        downloadLink.onclick = destroyClickedElement;
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+    }
+
+    downloadLink.click();
+
+}
+
+//讀檔處理
+function destroyClickedElement(event) {
+    document.body.removeChild(event.target);
+}
+
+//畫出輸出檔
+function Read_output() {
+    Clear();
+    //新增頂點
+    for (var i = 0; i < res.length ; i++) {
+        console.log(res[i]);
+        var res_point = res[i].split(" ");
+        console.log(res_point);
+        if ("P" == res_point[0]) {
+            console.log("P");
+            circle = new Kinetic.Circle({
+                x: parseInt(res_point[1]),
+                y: parseInt(res_point[2]),
+                radius: 2,
+                fill: 'red',
+                stroke: 'black',
+                strokeWidth: 4
+            });
+            layer.add(circle);
+        } else if ("E" == res_point[0]) {
+            console.log("E");
+            var P0 = new Kinetic.Circle({
+                x: parseInt(res_point[1]),
+                y: parseInt(res_point[2]),
+                radius: 2,
+                fill: 'green',
+                stroke: 'black',
+                strokeWidth: 4
+            });
+            var P1 = new Kinetic.Circle({
+                x: parseInt(res_point[3]),
+                y: parseInt(res_point[4]),
+                radius: 2,
+                fill: 'green',
+                stroke: 'black',
+                strokeWidth: 4
+            });
+            draw_output_line(P0,P1,0,0); //在此中垂線 made by who 不重要
+            //draw_line(P0,P1,0,0);
+        }
+    }
+}
+//清空畫布
+function Clear() {
+    layer.removeChildren();
+    textlayer.removeChildren();
+    linelayer.removeChildren();
+    convex_draw_layer.removeChildren();
+    HP_draw_layer.removeChildren();
+    step_draw_layer.removeChildren();
+    HPlayer = [];
+    vorlayer = [];
+    convexlayer = [];
+    bisectorlayer = [];
+    bisector_checked = [];
+    steplayer = [];
+    select_i = -1;
+    select_first = -1;
+    step_index = 0;
+    current_step_index = 0;
+    HP_highest_isset = false;
+    last_index_isset = false;
+    Step_isset = false;
+    count = 0;
+    stage.draw();
+    $(".number_of_sites").html("Number of Sites 0 of 10000 So far.");
+}
+
+//清空線段
+function Reset() {
+    linelayer.removeChildren();
+    textlayer.removeChildren();
+    convex_draw_layer.removeChildren();
+    HP_draw_layer.removeChildren();
+    step_draw_layer.removeChildren();
+    HPlayer = [];
+    vorlayer = [];
+    convexlayer = [];
+    bisectorlayer = [];
+    bisector_checked = [];
+    steplayer = [];
+    steplayer[0] = Array();
+    steplayer[1] = Array();
+    steplayer[2] = Array();
+    select_i = -1;
+    select_first = -1;
+    step_index = 0;
+    current_step_index = 0;
+    HP_highest_isset = false;
+    last_index_isset = false;
+    Step_isset = false;
+    count = 0;
+    setp_index = 0;
+    stage.draw();
+}
+
+//找vorlayer中各自的convex hull
+function find_convex_hull(first) {
+    var node_id;
+    var node_array = layer.getChildren();
+    if (2 == vorlayer[first]['point'].length) {
+        node_id = vorlayer[first]['point'][0].getAttr('circle_id');
+        vorlayer[first]['point'][0].setAttr('counter_clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+        vorlayer[first]['point'][0].setAttr('clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+        node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+        node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+
+        node_id = vorlayer[first]['point'][1].getAttr('circle_id');
+        vorlayer[first]['point'][1].setAttr('counter_clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+        vorlayer[first]['point'][1].setAttr('clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+        node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+        node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+    } else if (3 == vorlayer[first]['point'].length) {
+        var index0;
+        var index1;
+        var index2;
+        var value;
+        index0 = vorlayer[first]['point'][0].getAttr('circle_id');
+        index1 = vorlayer[first]['point'][1].getAttr('circle_id');
+        index2 = vorlayer[first]['point'][2].getAttr('circle_id');
+        value = cross_product(index0,index1,index2);
+        if (value < 0) {
+            node_id = vorlayer[first]['point'][0].getAttr('circle_id');
+            vorlayer[first]['point'][0].setAttr('counter_clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+            vorlayer[first]['point'][0].setAttr('clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+            node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+            node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+
+            node_id = vorlayer[first]['point'][1].getAttr('circle_id');
+            vorlayer[first]['point'][1].setAttr('counter_clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+            vorlayer[first]['point'][1].setAttr('clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+            node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+            node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+
+            node_id = vorlayer[first]['point'][2].getAttr('circle_id');
+            vorlayer[first]['point'][2].setAttr('counter_clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+            vorlayer[first]['point'][2].setAttr('clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+            node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+            node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+        } else {
+            node_id = vorlayer[first]['point'][0].getAttr('circle_id');
+            vorlayer[first]['point'][0].setAttr('counter_clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+            vorlayer[first]['point'][0].setAttr('clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+            node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+            node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+
+            node_id = vorlayer[first]['point'][1].getAttr('circle_id');
+            vorlayer[first]['point'][1].setAttr('counter_clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+            vorlayer[first]['point'][1].setAttr('clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+            node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+            node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][2].getAttr('circle_id'));
+
+            node_id = vorlayer[first]['point'][2].getAttr('circle_id');
+            vorlayer[first]['point'][2].setAttr('counter_clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+            vorlayer[first]['point'][2].setAttr('clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+            node_array[node_id].setAttr('counter_clockwise',vorlayer[first]['point'][1].getAttr('circle_id'));
+            node_array[node_id].setAttr('clockwise',vorlayer[first]['point'][0].getAttr('circle_id'));
+        }
+    }
+    for (var i = 0; i < vorlayer[first]['point'].length; i++) {
+        convexlayer[first].push(vorlayer[first]['point'][i]);
+    }
+}
+
+//合併convex full
+function merge_convex(L_first,R_first,L_last,R_last) {
+    var L_start = find_rightest_point(L_first);
+    var R_start = find_leftest_point(R_first);
+    var node_array = layer.getChildren();
+    var temp_convex = Array();
+    while (true) {
+        while (true) {
+            if (find_up(L_start,R_start,"Left") > 0) {
+                L_start = node_array[L_start].getAttr('counter_clockwise');
+            } else {
+                L_up = L_start;
+                break;
+            }
+        }
+        while (true) {
+            if (find_up(L_start,R_start,"Right") < 0) {
+                R_start = node_array[R_start].getAttr('clockwise');
+            } else {
+                R_up = R_start;
+                break;
+            }
+        }
+        if (find_up(L_up,R_up,"Left") <= 0 && find_up(L_up,R_up,"Right") >= 0) {
+            break;
+        } else {
+            L_start = node_array[L_start].getAttr('counter_clockwise');
+        }
+    }
+
+    L_start = find_rightest_point(L_first);
+    R_start = find_leftest_point(R_first);
+
+    while (true) {
+        while (true) {
+            if (find_down(L_start,R_start,"Left") < 0) {
+                L_start = node_array[L_start].getAttr('clockwise');
+            } else {
+                L_down = L_start;
+                break;
+            }
+        }
+        while (true) {
+            if (find_down(L_start,R_start,"Right") > 0) {
+                R_start = node_array[R_start].getAttr('counter_clockwise');
+            } else {
+                R_down = R_start;
+                break;
+            }
+        }
+        if (find_down(L_down,R_down,"Left") >= 0 && find_down(L_down,R_down,"Right") <= 0) {
+            break;
+        } else {
+            L_start = node_array[L_start].getAttr('clockwise');
+        }
+    }
+    if (0 == find_up(L_up,R_up,"Left") && 0 == find_up(L_up,R_up,"Right") && 0 == find_down(L_down,R_down,"Left") && 0 == find_down(L_down,R_down,"Right")) {
+        L_up = L_last;
+        L_down = L_last;
+        R_up = R_first;
+        R_down = R_first;
+        for (var i = L_first; i <= L_last; i++) {
+            if (i == L_first) {
+                node_array[i].setAttr('clockwise',i+1);
+                node_array[i].setAttr('counter_clockwise',R_last);
+            } else if (i == L_last) {
+                node_array[i].setAttr('clockwise',R_first);
+                node_array[i].setAttr('counter_clockwise',i-1);
+            }else {
+                node_array[i].setAttr('clockwise',i+1);
+                node_array[i].setAttr('counter_clockwise',i-1);
+            }
+            //temp_convex.push(node_array[i]);
+        }
+        for (var i = R_first; i <= R_last; i++) {
+            if (i == R_first) {
+                node_array[i].setAttr('clockwise',i+1);
+                node_array[i].setAttr('counter_clockwise',L_last);
+            } else if (i == R_last) {
+                node_array[i].setAttr('clockwise',L_first);
+                node_array[i].setAttr('counter_clockwise',i-1);
+            }else {
+                node_array[i].setAttr('clockwise',i+1);
+                node_array[i].setAttr('counter_clockwise',i-1);
+            }
+            //temp_convex.push(node_array[i]);
+        }
+        console.log(temp_convex);
+        //return temp_convex;
+    } else {
+        //console.log(find_up(L_up,R_up,"Left"));
+        //console.log(find_up(L_up,R_up,"Right"));
+        //console.log(find_down(L_down,R_down,"Left"));
+        //console.log(find_down(L_down,R_down,"Right"));
+        //console.log(L_up);
+        //console.log(R_up);
+        //console.log(L_down);
+        //console.log(R_down);
+        node_array[L_up].setAttr('clockwise',R_up);
+        node_array[R_up].setAttr('counter_clockwise',L_up);
+        node_array[L_down].setAttr('counter_clockwise',R_down);
+        node_array[R_down].setAttr('clockwise',L_down);
+    }
+    var merge_index;
+    var next_index;
+    merge_index = L_up;
+    temp_convex.push(node_array[merge_index]);
+    merge_index = node_array[merge_index].getAttr('clockwise');
+    while (true) {
+        if (node_array[merge_index].getAttr('circle_id') == L_up) {
+            break;
+        } else {
+            temp_convex.push(node_array[merge_index]);
+            merge_index = node_array[merge_index].getAttr('clockwise');
+        }
+    }
+    draw_convex(temp_convex);
+    return temp_convex;
+}
+
+//找convex_hull 最右邊的點
+function find_rightest_point(first) {
+    //console.log(first);
+    var rightest_node = convexlayer[first][0];
+    var rightest_index = convexlayer[first][0].getAttr('circle_id');
+    for (var i = 1; i < convexlayer[first].length; i++) {
+        if (convexlayer[first][i].getAttr('x') > rightest_node.getAttr('x')) {
+            rightest_node = convexlayer[first][i];
+            rightest_index = convexlayer[first][i].getAttr('circle_id');
+        }
+    }
+    return rightest_index;
+}
+
+//找convex_hull 最左邊的點
+function find_leftest_point(first) {
+    var leftest_node = convexlayer[first][0];
+    var leftest_index = convexlayer[first][0].getAttr('circle_id');
+    for (var i = 1; i < convexlayer[first].length; i++) {
+        if (convexlayer[first][i].getAttr('x') < leftest_node.getAttr('x')) {
+            leftest_node = convexlayer[first][i];
+            leftest_index = convexlayer[first][i].getAttr('circle_id');
+        }
+    }
+    return leftest_index;
+}
+
+//找convex_hull 上切點
+function find_up(left,right,side) {
+    var node_array = layer.getChildren();
+    if ("Left" == side) {
+        var LCCW = node_array[left].getAttr('counter_clockwise');
+        //console.log("cross_product:" + cross_product(right,left,LCCW));
+        return cross_product(right,left,LCCW);
+    } else if ("Right" == side) {
+        var RCW = node_array[right].getAttr('clockwise');
+        //console.log("cross_product:" + cross_product(left,right,RCW));
+        return cross_product(left,right,RCW);
+    }
+}
+
+//找convex_hull 下切點
+function find_down(left,right,side) {
+    var node_array = layer.getChildren();
+    if ("Left" == side) {
+        var LCW = node_array[left].getAttr('clockwise');
+        return cross_product(right,left,LCW);
+    } else if ("Right" == side) {
+        var RCCW = node_array[right].getAttr('counter_clockwise');
+        return cross_product(left,right,RCCW);
+    }
+}
+
+//找外積
+function cross_product(index0,index1,index2) {
+    var node_array = layer.getChildren();
+    var P0;
+    var P1;
+    var P2;
+    P0 = node_array[index0].getPosition();
+    P1 = node_array[index1].getPosition();
+    P2 = node_array[index2].getPosition();
+    return (P2.x - P0.x) * (P1.y - P0.y) - (P1.x - P0.x) * (P2.y - P0.y);
+}
+
+//HP使用外積消線
+function HP_cross_product(node0,node1,node2) {
+    var P0;
+    var P1;
+    var P2;
+    P0 = node0.getPosition();
+    P1 = node1.getPosition();
+    P2 = node2.getPosition();
+    return (P2.x - P0.x) * (P1.y - P0.y) - (P1.x - P0.x) * (P2.y - P0.y);
+}
+
+//找HP
+function find_HP(temp_convex,L_first,R_first) {
+    var temp_HP;
+    var node_array = layer.getChildren();
+    var PL;
+    var PR;
+    var L_start = L_up;
+    var R_start = R_up;
+    var select_first;
+    var return_array;
+    console.log(bisector_checked);
+    console.log(L_start);
+    console.log(R_start);
+    console.log(L_down);
+    console.log(R_down);
+    while (L_start != L_down || R_start != R_down) {
+        PL = node_array[L_start].getPosition();
+        PR = node_array[R_start].getPosition();
+        temp_HP = create_bisector(PL,PR);
+
+        return_array = find_cross_bisector(temp_HP,L_first,R_first,L_start,R_start);
+        if ("Left" == return_array['select_first'] ) {
+            if (L_start == return_array['select_index0']) {
+                L_start = return_array['select_index1'];
+            } else {
+                L_start = return_array['select_index0'];
+            }
+        } else {
+            if (R_start == return_array['select_index0']) {
+                R_start = return_array['select_index1'];
+            } else {
+                R_start = return_array['select_index0'];
+            }
+        }
+        draw_HP(temp_HP[0],temp_HP[1]);
+    }
+
+    PL = node_array[L_start].getPosition();
+    PR = node_array[R_start].getPosition();
+    temp_HP = create_bisector(PL,PR);
+    if (HP_highest_isset) {
+        if (temp_HP[0].getPosition().y > temp_HP[1].getPosition().y) {
+            temp_HP[0] = HP_highest_point;
+        } else {
+            temp_HP[1] = HP_highest_point;
+        }
+    }
+    console.log(temp_HP);
+    HPlayer[L_first].push(temp_HP);
+    draw_HP(temp_HP[0],temp_HP[1]);
+}
+
+//找與HP有交集的bisector
+function find_cross_bisector(temp_HP,L_first,R_first,L_start,R_start) {
+    var return_array = Array();
+    var node_array = layer.getChildren();
+    var temp_index;
+    var temp_choose;
+    var temp_bisector;
+    var P0;
+    var P1;
+    var cross;
+    var select_i;
+    var select_first;
+    var temp_highest_y;
+    var max_isset = false;
+    var select_index0;
+    var select_index1;
+    if (!HP_highest_isset) {
+        if (temp_HP[0].getPosition().y > temp_HP[1].getPosition().y) {
+            HP_highest_point = temp_HP[0];
+        } else {
+            HP_highest_point = temp_HP[1];
+        }
+        HP_highest_isset = true;
+    }
+
+    select_i = -1;
+    select_first = -1;
+
+    for (var i in bisectorlayer[L_start]) {
+        temp_index = bisectorlayer[L_start][i].getAttr('made_by');
+        P0 = node_array[temp_index[0]].getPosition();
+        P1 = node_array[temp_index[1]].getPosition();
+        if (last_index_isset) {
+            if (last_index0 == temp_index[0] && last_index1 == temp_index[1]) {
+                continue;
+            } else if (last_index0 == temp_index[1] && last_index1 == temp_index[0]) {
+                continue;
+            }
+        }
+        temp_bisector = create_bisector(P0,P1);
+
+        cross = get_circumcenter(temp_bisector,temp_HP);
+        if (cross.getPosition().y <= HP_highest_point.getPosition().y) {
+            if (!max_isset) {
+                max_isset = true;
+                select_index0 = temp_index[0];
+                select_index1 = temp_index[1];
+                select_i = i;
+                select_first = L_start;
+                temp_highest_y = cross.getPosition().y;
+            } else {
+                if (cross.getPosition().y > temp_highest_y) {
+                    select_index0 = temp_index[0];
+                    select_index1 = temp_index[1];
+                    select_i = i;
+                    select_first = L_start;
+                    temp_highest_y = cross.getPosition().y;
+                }
+            }
+        } else {
+            continue;
+        }
+    }
+
+    for (var i in bisectorlayer[R_start]) {
+        temp_index = bisectorlayer[R_start][i].getAttr('made_by');
+        P0 = node_array[temp_index[0]].getPosition();
+        P1 = node_array[temp_index[1]].getPosition();
+        if (last_index_isset) {
+            if (last_index0 == temp_index[0] && last_index1 == temp_index[1]) {
+                continue;
+            } else if (last_index0 == temp_index[1] && last_index1 == temp_index[0]) {
+                continue;
+            }
+        }
+        temp_bisector = create_bisector(P0,P1);
+        cross = get_circumcenter(temp_bisector,temp_HP);
+        if (cross.getPosition().y <= HP_highest_point.getPosition().y) {
+            if (!max_isset) {
+                max_isset = true;
+                select_index0 = temp_index[0];
+                select_index1 = temp_index[1];
+                select_i = i;
+                select_first = R_start;
+                temp_highest_y = cross.getPosition().y;
+            } else {
+                if (cross.getPosition().y > temp_highest_y) {
+                    select_index0 = temp_index[0];
+                    select_index1 = temp_index[1];
+                    select_i = i;
+                    select_first = R_start;
+                    temp_highest_y = cross.getPosition().y;
+                }
+            }
+        } else {
+            continue;
+        }
+    }
+    console.log(select_index0);
+    P0 = node_array[select_index0].getPosition();
+    P1 = node_array[select_index1].getPosition();
+    temp_bisector = create_bisector(P0,P1);
+    cross = get_circumcenter(temp_bisector,temp_HP);
+    if (!last_index_isset) {
+        last_index_isset = true;
+    }
+    last_index0 = select_index0;
+    last_index1 = select_index1;
+
+
+    if (temp_HP[0].getPosition().y < temp_HP[1].getPosition().y) {
+        temp_HP[0] = cross;
+        temp_HP[1] = HP_highest_point;
+    } else {
+        temp_HP[0] = HP_highest_point;
+        temp_HP[1] = cross;
+    }
+    HP_highest_point = cross;
+    HPlayer[L_first].push(temp_HP);
+
+    if (temp_HP[0].getPosition().y < temp_HP[1].getPosition().y) {
+        cut_bisector_by_HP(select_first,select_index0,select_index1,R_first,cross,temp_HP[1]);
+    } else {
+        cut_bisector_by_HP(select_first,select_index0,select_index1,R_first,cross,temp_HP[0]);
+    }
+    if (select_first >= R_first) {
+        return_array['select_first'] = "Right";
+    } else {
+        return_array['select_first'] = "Left";
+    }
+    return_array['select_index0'] = select_index0;
+    return_array['select_index1'] = select_index1;
+    return return_array;
+
+}
+
+//利用 HP 找 bisector
+function cut_bisector_by_HP(select_first,select_index0,select_index1,R_first,cross,temp_HP) {
+    var node_array = layer.getChildren();
+    var P0;
+    var P1;
+    var value0;
+    var value1;
+    var bisector_p0;
+    var bisector_p1;
+    var temp_bisector = Array();
+    bisector_p0 = new Kinetic.Circle({
+        x: bisectorlayer[select_index0][select_index1].getAttr("points")[0].x,
+        y: bisectorlayer[select_index0][select_index1].getAttr("points")[0].y,
+        radius: 2,
+        fill: 'green',
+        stroke: 'black',
+        strokeWidth: 4,
+    });
+    bisector_p1 = new Kinetic.Circle({
+        x: bisectorlayer[select_index0][select_index1].getAttr("points")[1].x,
+        y: bisectorlayer[select_index0][select_index1].getAttr("points")[1].y,
+        radius: 2,
+        fill: 'green',
+        stroke: 'black',
+        strokeWidth: 4,
+    });
+    temp_bisector[0] = bisector_p0;
+    temp_bisector[1] = bisector_p1;
+    value0 = HP_cross_product(cross,temp_HP,temp_bisector[0]);
+    value1 = HP_cross_product(cross,temp_HP,temp_bisector[1]);
+    console.log(value0);
+    console.log(value1);
+
+    if (select_first >= R_first) {
+        if (value0 < 0){
+            temp_bisector[0] = cross;
+        } else if (value1 < 0) {
+            temp_bisector[1] = cross;
+        }
+    } else {
+        if (value0 > 0){
+            temp_bisector[0] = cross;
+        } else if (value1 > 0) {
+            temp_bisector[1] = cross;
+        }
+    }
+    draw_cut_line(temp_bisector[0],temp_bisector[1],select_index0,select_index1);
+}
+</script>
+</head>
+<body>
+<div class="menu">
+    <span class="label_x">X: 000</span>
+    <span class="label_y">Y: 000</span>
+    <span class="show_point_indices"><input type="checkbox" name="show_point_indices" value="true">Show Point Indices</span>
+    <span class="number_of_sites">Numbers of Sites 0 of 10000 sofar.</span>
+</div>
+<div id="container">
+</div>
+<div class="foot">
+    <!--<span class="button_quickie"><button type="button" onclick="alert('haha')">Quickie Voronoi</button></span>-->
+    <span class="button_start"><button type="button" onclick="Start()">Start</button></span>
+    <span class="button_step"><button type="button" onclick="Step()">Step</button></span>
+    <!--<span class="button_reset"><button type="button" onclick="Reset()">Reset</button></span>-->
+    <span class="button_clear"><button type="button" onclick="Clear()">Clear</button></span>
+    <!--</br>-->
+    <span class="button_output"><button type="button" onclick="Output()" disabled>Output</button></span>
+    <!--<span class="button_sort"><button type="button" onclick="Sort()">Sort</button></span>-->
+    <span class="button_input_draw"><button type="button" onclick="Input_draw()" disabled>Input draw</button></span>
+    <span class="button_read_output"><button type="button" onclick="Read_output()">Read output</button></span>
+    <span class="button_input"><input type="file"></input></span>
+    <!--<span class="delaunay"><input type="checkbox" name="delaunay" value="true">Delaunay</span>-->
+</div>
+<div id="input_text">
+</div>
+</body>
+</html>

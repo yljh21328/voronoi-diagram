@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>M023040025 - Voronoi Diagram</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" href="css/style.css" type="text/css" media="all" />
+<link rel="stylesheet" href="css/jquery.jcarousel.css" type="text/css" media="all" />
+<!--[if IE 6]><link rel="stylesheet" href="css/ie6.css" type="text/css" media="all" /><![endif]-->
+<link rel="shortcut icon" href="css/images/favicon.ico" />
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="js/jquery.jcarousel.pack.js"></script>
+<script type="text/javascript" src="js/func.js"></script>
+</head>
+<body>
+<div class="shell">
+  <div class="border">
+    <div id="header">
+      <a href="index.html"><img src="img/logo.jpg" style="width:200px;height:109px"></a>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div id="navigation">
+      <ul>
+        <li><a href="index.html" class="active">軟體規格書</a></li>
+        <li><a href="manual.html">軟體說明</a></li>
+        <li><a href="programming.html">程式設計</a></li>
+        <li><a href="experiment.html">軟體測試與實驗結果</a></li>
+        <li><a href="conclusion.html">結論與心得</a></li>
+        <li><a href="appendix.html">附錄</a></li>
+      </ul>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div id="main">
+        <div class="highlight">
+            <div class="block">
+                <h2>開發環境</h2>
+                <p>
+                    <ul>
+                        <li><a href="http://www.vim.org/">Vim 7.3</a></li>
+                        功能強大的編輯器
+                        <img src="img/vim_editor.png" alt="" class="right" style="width:400px;height:140px;"/>
+                        <li><a href="http://www.w3schools.com/js/">Javascript</a></li>
+                        適合快速開發的直譯式程式語言
+                        <img src="img/javascript.png" alt="" class="right" style="width:400px;height:140px;"/>
+                        <li><a href="http://kineticjs.com/">KineticJS</a></li>
+                        專業Javascript 繪圖套件
+                        <img src="img/kineticjs.png" alt="" class="right" style="width:480px;height:100px;"/>
+                        <li><a href="http://jquery.com/">jQuery</a></li>
+                        邪惡的Javascript 函式庫
+                        <img src="img/jquery.png" alt="" class="right" style="width:480px;height:100px;"/>
+                    </ul>
+                </p>
+            </div>
+            <div class="block">
+                <h2>輸入與輸出規格</h2>
+                <p>
+                    <div style="padding-left:20px;">
+                        輸入:</br>
+                        1.滑鼠可在畫布上任意新增頂點。其畫布大小為 700 * 600</br>
+                        2.點選"選擇檔案"，讀取預先設定好的測資進來，並點選"Input draw"畫出</br>
+                        3.點選"選擇檔案"，讀取已畫好的 Voronoi Diagram，並點選"Read output"畫出。</br>
+                    </div>
+                    </br>
+                    <div style="padding-left:20px;">
+                        輸出:</br>
+                        1.點選"Start"，直接將 Voronoi Diagram 畫在畫布上</br>
+                        2.點選"Step"，將 Voronoi Diagram 以 Step by Step 的方式畫在畫布上</br>
+                        3.點選"Output"，將 Voronoi Diagram 的所有 Points 及 Edges 依照 lexical order 存成檔案</br>
+                    </div>
+                </p>
+            </div>
+            <div class="block">
+                <h2>介面與功能規格</h2>
+                <p>
+                    </br>
+                    <img src="img/example.png" alt="" class="right" style="width:640px;height:480px;"/>
+                    <div style="padding-left:20px;">
+                        1.顯示滑鼠坐標位置</br>
+                        2.可選擇是否顯示 Point 的 Index</br>
+                        3."Start" 按鈕，執行 Voronoi Diagram</br>
+                        4."Step" 按鈕，逐步執行 Voronoi Diagram</br>
+                        5."Clear" 按鈕，清空畫布</br>
+                        6."Output" 按鈕，輸出 Voronoi Diagram 結果到檔案</br>
+                        7."Input Draw" 按鈕，畫出讀入檔案的 Points</br>
+                        8."Read output" 按鈕，畫出讀入檔案的 Voronoi Diagram</br>
+                        9."選擇檔案" 按鈕，選擇要讀取的檔案</br>
+                    </div>
+                </p>
+            </div>
+            <div class="block">
+                <h2>軟體測試規劃書</h2>
+                <p>
+                    <div style="padding-left:20px;">
+                        1.所有測試數據皆可在 <a href="appendix.html">附錄</a> 中下載</br>
+                        2.執行程式時，base case 為 兩點 voronoi diagram 及 三點 voronoi diagram。任何大於三個點的圖皆採用 divide and conquer 解決</br>
+                        3.本程式最高實驗數據為"6點的voronoi diagram"，詳情可參考 <a href="experiment.html">測試與實驗結果</a></br>
+                    </div>
+                </p>
+            </div>
+        </div>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div class="shadow-l"></div>
+    <div class="shadow-r"></div>
+    <div class="shadow-b"></div>
+  </div>
+  <div id="footer">
+    <p class="left">Copyright &copy; 2013, NSYSU M023040025 Kai-Ning Yang, All Rights Reserved</p>
+    <div class="cl"></div>
+  </div>
+</div>
+</body>
+</html>

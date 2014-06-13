@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>M023040025 - Voronoi Diagram</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" href="css/style.css" type="text/css" media="all" />
+<link rel="stylesheet" href="css/jquery.jcarousel.css" type="text/css" media="all" />
+<!--[if IE 6]><link rel="stylesheet" href="css/ie6.css" type="text/css" media="all" /><![endif]-->
+<link rel="shortcut icon" href="css/images/favicon.ico" />
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="js/jquery.jcarousel.pack.js"></script>
+<script type="text/javascript" src="js/func.js"></script>
+</head>
+<body>
+<div class="shell">
+  <div class="border">
+    <div id="header">
+      <a href="index.html"><img src="img/logo.jpg" style="width:200px;height:109px"></a>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div id="navigation">
+      <ul>
+        <li><a href="index.html">軟體規格書</a></li>
+        <li><a href="manual.html" class="active">軟體說明</a></li>
+        <li><a href="programming.html">程式設計</a></li>
+        <li><a href="experiment.html">軟體測試與實驗結果</a></li>
+        <li><a href="conclusion.html">結論與心得</a></li>
+        <li><a href="appendix.html">附錄</a></li>
+      </ul>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div id="main">
+        <div class="highlight">
+            <div class="block">
+                <h2>軟體使用說明</h2>
+                <p>
+                    <div style="padding-left:20px;">
+                        1.直接開啟瀏覽器執行即可服用</br>
+                        2.畫布大小為 700 * 600</br>
+                        3.可以用滑鼠任意點擊，按下"Start"按鈕後則立即開始計算。</br>
+                        4.欲輸入新的測資時，請先按下"Clear"按鈕清除畫布。</br>
+                        5.利用"Step"按鈕可以逐步執行，在每次 merge 前停止。</br>
+                        6.讀檔功能可讀取兩種檔案，一種是頂點的位置，另外一種是已經畫好的 Voronoi Diagram。 利用 "Input Draw" 按鈕畫頂點，利用 "Read Output" 按鈕畫 Voronoi Diagram</br>
+                    </div>
+                    </br>
+                </p>
+            </div>
+            <div class="block">
+                <h2>軟體執行範例(直接輸出執行結果)</h2>
+                <p>
+                    </br>
+                    <img src="img/example.png" alt="" class="right" style="width:640px;height:480px;"/>
+                    <ul>
+                        <li>紫色線段為合併兩個Voronoi Diagram 的 Hyper Plane</li>
+                        <li>頂點的連線為合併後的 Convex Hull</li>
+                    </ul>
+                    </br>
+                </p>
+            </div>
+            <div class="block">
+                <h2>軟體執行範例(逐步執行)</h2>
+                <p>
+                    <div style="padding-left:20px;">
+                        <ul>
+                            <li>左邊的 Voronoi Diagram</li>
+                        </ul>
+                    </div>
+                    <img src="img/step_1.png" alt="" class="right" style="width:640px;height:480px;"/>
+                    <div style="padding-left:20px;">
+                        <ul>
+                            <li>右邊的 Voronoi Diagram</li>
+                        </ul>
+                    </div>
+                    <img src="img/step_2.png" alt="" class="right" style="width:640px;height:480px;"/>
+                    <div style="padding-left:20px;">
+                        <ul>
+                            <li>合併後的 Voronoi Diagram</li>
+                        </ul>
+                    </div>
+                    <img src="img/step_3.png" alt="" class="right" style="width:640px;height:480px;"/>
+                    </br>
+                </p>
+            </div>
+        </div>
+      <div class="cl">&nbsp;</div>
+    </div>
+    <div class="shadow-l"></div>
+    <div class="shadow-r"></div>
+    <div class="shadow-b"></div>
+  </div>
+  <div id="footer">
+    <p class="left">Copyright &copy; 2013, NSYSU M023040025 Kai-Ning Yang, All Rights Reserved</p>
+    <div class="cl"></div>
+  </div>
+</div>
+</body>
+</html>
